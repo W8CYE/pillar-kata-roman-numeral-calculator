@@ -1,113 +1,76 @@
+# pylint: disable=C0114, C0115, C0116
+
 import re
-from collections import Counter
+
 
 class Roman:
-    minimum = 1
-    maximum = 3999
+    MIN_VALUE = 1
+    MAX_VALUE = 3999
+    REGEX_VALIDATION_PATTERN = r"^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$"
+    REGEX_EXTRACTION_PATTERN = r"M|CM|CD|D|C|XC|XL|L|X|IX|IV|V|I"
 
-    roman_letter_values = {
-        'I': 1,
-        'V': 5,
-        'X': 10,
-        'L': 50,
-        'C': 100,
-        'D': 500,
-        'M': 1000,
+    DECIMAL_TO_ROMAN: dict[int, str] = {
+        1000: "M",
+        900: "CM",
+        500: "D",
+        400: "CD",
+        100: "C",
+        90: "XC",
+        50: "L",
+        40: "XL",
+        10: "X",
+        9: "IX",
+        5: "V",
+        4: "IV",
+        1: "I",
     }
 
-    def _make_list_of_roman_digits(s):
-        return [''] + s.split()
+    ROMAN_TO_DECIMAL: dict[str, int] = {v: k for k, v in DECIMAL_TO_ROMAN.items()}
 
-    roman_units = _make_list_of_roman_digits('I II III IV V VI VII VIII IX')
-    roman_tens = _make_list_of_roman_digits('X XX XXX XL L LX LXX LXXX XC')
-    roman_hundreds = _make_list_of_roman_digits('C CC CCC CD D DC DCC DCCC CM')
-    roman_thousands = _make_list_of_roman_digits('M MM MMM')
-    roman_digits = (
-        roman_units,
-        roman_tens,
-        roman_hundreds,
-        roman_thousands,
-    )
+    def decimal_to_roman(self, number: int) -> str:
+        result = ""
+        for decimal, roman_numeral in self.DECIMAL_TO_ROMAN.items():
+            reps, number = divmod(number, decimal)
+            result += roman_numeral * reps
+        return result
 
-    def _make_value_of_roman_digits(roman_digits, scaler):
-        return {
-            roman_digit: i * scaler
-            for i, roman_digit in enumerate(roman_digits)
-            if roman_digit
-        }
+    def roman_to_decimal(self, roman_numeral: str) -> int:
+        if not re.match(self.REGEX_VALIDATION_PATTERN, roman_numeral):
+            raise ValueError
+        numerals = re.findall(self.REGEX_EXTRACTION_PATTERN, roman_numeral)
+        return sum(self.ROMAN_TO_DECIMAL[numeral] for numeral in numerals)
 
-    value_of_roman_thousands = _make_value_of_roman_digits(
-        roman_thousands, 1000)
-    value_of_roman_hundreds = _make_value_of_roman_digits(roman_hundreds, 100)
-    value_of_roman_tens = _make_value_of_roman_digits(roman_tens, 10)
-    value_of_roman_units = _make_value_of_roman_digits(roman_units, 1)
-    value_dicts = (
-        value_of_roman_thousands,
-        value_of_roman_hundreds,
-        value_of_roman_tens,
-        value_of_roman_units,
-    )
-
-    def _make_digits_pattern(roman_digits):
-        return '(' + '|'.join(roman_digits) + ')?'
-
-    pattern = re.compile(
-        '^' +
-        ''.join(map(_make_digits_pattern, value_dicts)) +
-        '$')
-
-    def __init__(self, roman_numeral_or_int):
+    def __init__(self, roman_numeral_or_int: str):
         try:
             self.value = int(roman_numeral_or_int)
         except ValueError:
-            roman_numeral = roman_numeral_or_int
-        else:
-            if self.minimum <= self.value <= self.maximum:
-                return
+            self.value = self.roman_to_decimal(roman_numeral_or_int)
+        if not self.MIN_VALUE <= self.value <= self.MAX_VALUE:
             raise ValueError
 
-        m = re.match(self.pattern, roman_numeral)
-        if not m:
-            raise ValueError
-
-        letter_values = [
-            self.roman_letter_values[letter]
-            for letter in roman_numeral]
-        next_letter_values = letter_values[1:] + [0]
-        self.value = sum(
-            +letter_value
-            if letter_value >= next_letter_value else -letter_value
-            for letter_value, next_letter_value in zip(
-                letter_values, next_letter_values)
-        )
-        if self.value < self.minimum:
-            raise ValueError
-
-    def get_value(self):
-        return self.value
-
-    def __add__(self, other):
-        value = self.value + other.value
-        if value > self.maximum:
-            raise OverflowError
-        return Roman(value)
-
-    def __sub__(self, other):
-        value = self.value - other.value
-        if value < self.minimum:
-            raise OverflowError
-        return Roman(value)
+    @property
+    def roman_numeral(self):
+        return self.decimal_to_roman(self.value)
 
     def __str__(self):
-        reversed_digits = map(int, reversed(str(self.value)))
-        reversed_roman_digits = [
-            d[i]
-            for i, d in zip(reversed_digits, self.roman_digits)
-        ]
-        return ''.join(reversed(reversed_roman_digits))
+        return self.roman_numeral
 
     def __repr__(self):
-        return "{name}({value})".format(
-            name=self.__class__.__name__,
-            value=repr(str(self)),
-        )
+        return f"{self.__class__.__name__}('{self.roman_numeral}')"
+
+    def get_value(self) -> int:
+        return self.value
+
+    def __add__(self, other: "Roman") -> "Roman":
+        if not isinstance(other, Roman):
+            raise TypeError
+        if (value := self.value + other.value) > self.MAX_VALUE:
+            raise OverflowError
+        return Roman(str(value))
+
+    def __sub__(self, other: "Roman") -> "Roman":
+        if not isinstance(other, Roman):
+            raise TypeError
+        if (value := self.value - other.value) < self.MIN_VALUE:
+            raise OverflowError
+        return Roman(str(value))
