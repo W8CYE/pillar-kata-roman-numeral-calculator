@@ -68,11 +68,13 @@ class Roman:
         return f"{self.__class__.__name__}({str(self)!r})"
 
     def __add__(self, other: "Roman") -> "Roman":
-        if (value := self.value + other.value) > self.MAX_VALUE:
+        value = self.value + other.value
+        if value > self.MAX_VALUE:
             raise OverflowError
         return Roman(str(value))
 
     def __sub__(self, other: "Roman") -> "Roman":
-        if (value := self.value - other.value) < self.MIN_VALUE:
+        value = self.value - other.value
+        if value < self.MIN_VALUE:
             raise OverflowError
         return Roman(value)
